@@ -1,0 +1,151 @@
+import java.util.*;
+
+public class AStar {
+    public static void main(String[] args) {
+        int[][] initial = {
+                { 1, 2, 3 },
+                { 4, 0, 5 },
+                { 6, 7, 8 }
+        };
+        System.out.println("Initial Board:");
+        printBoard(initial);
+        int[][] goal = {
+                { 1, 2, 3 },
+                { 4, 5, 6 },
+                { 7, 8, 0 }
+        };
+        PuzzleState solutionState = solvePuzzle(initial, goal);
+
+        if (solutionState != null) {
+            System.out.println("");
+            List<String> moves = new ArrayList<>();
+            List<int[][]> states = new ArrayList<>();
+            PuzzleState currentState = solutionState;
+
+            while (currentState.parent != null) {
+                moves.add(currentState.move);
+                states.add(currentState.state);
+                currentState = currentState.parent;
+            }
+            Collections.reverse(moves);
+            Collections.reverse(states);
+
+            System.out.println("Blank space movements:");
+            for (int i = 0; i < moves.size(); i++) {
+                System.out.println(moves.get(i));
+                printBoard(states.get(i));
+                System.out.println("Heuristic Value: " + states.get(i)[0][0]);
+                System.out.println();
+            }
+            System.out.println("Final Board:");
+            printBoard(goal);
+        } else {
+            System.out.println("No solution found.");
+        }
+    }
+
+    static void printBoard(int[][] board) {
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                System.out.print(board[i][j] + " ");
+            }
+            System.out.println();
+        }
+    }
+
+    public static PuzzleState solvePuzzle(int[][] initial, int[][] goal) {
+        PriorityQueue<PuzzleState> openSet = new PriorityQueue<>();
+        Set<String> closedSet = new HashSet<>();
+
+        PuzzleState initialNode = new PuzzleState(initial, null, "");
+        openSet.add(initialNode);
+
+        while (!openSet.isEmpty()) {
+            PuzzleState currentState = openSet.poll();
+            closedSet.add(Arrays.deepToString(currentState.state));
+
+            if (Arrays.deepEquals(currentState.state, goal)) {
+                return currentState;
+            }
+
+            int zeroRow = 0, zeroCol = 0;
+            outerLoop: for (zeroRow = 0; zeroRow < 3; zeroRow++) {
+                for (zeroCol = 0; zeroCol < 3; zeroCol++) {
+                    if (currentState.state[zeroRow][zeroCol] == 0) {
+                        break outerLoop;
+                    }
+                }
+            }
+
+            int[][] moves = {
+                    { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }
+            };
+            String[] moveNames = { "Up", "Down", "Left", "Right" };
+
+            for (int i = 0; i < moves.length; i++) {
+                int newRow = zeroRow + moves[i][0];
+                int newCol = zeroCol + moves[i][1];
+
+                if (newRow >= 0 && newRow < 3 && newCol >= 0 && newCol < 3) {
+                    int[][] newState = cloneState(currentState.state);
+                    newState[zeroRow][zeroCol] = newState[newRow][newCol];
+                    newState[newRow][newCol] = 0;
+
+                    PuzzleState newStateNode = new PuzzleState(newState, currentState, moveNames[i]);
+
+                    if (!closedSet.contains(Arrays.deepToString(newState))) {
+                        openSet.add(newStateNode);
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public static int[][] cloneState(int[][] state) {
+        int[][] newState = new int[3][3];
+        for (int i = 0; i < 3; i++) {
+            System.arraycopy(state[i], 0, newState[i], 0, 3);
+        }
+        return newState;
+    }
+}
+
+class PuzzleState implements Comparable<PuzzleState> {
+    int[][] state;
+    PuzzleState parent;
+    String move;
+    int gValue;
+    int hValue;
+    int fValue;
+
+    public PuzzleState(int[][] state, PuzzleState parent, String move) {
+        this.state = state;
+        this.parent = parent;
+        this.move = move;
+        this.gValue = parent == null ? 0 : parent.gValue + 1;
+        this.hValue = calculateHeuristic();
+        this.fValue = gValue + hValue;
+    }
+
+    private int calculateHeuristic() {
+        int totalDistance = 0;
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                int value = state[i][j];
+                if (value != 0) {
+                    int targetRow = (value - 1) / 3;
+                    int targetCol = (value - 1) % 3;
+                    totalDistance += Math.abs(i - targetRow) + Math.abs(j - targetCol);
+                }
+            }
+        }
+        return totalDistance;
+    }
+
+    @Override
+    public int compareTo(PuzzleState other) {
+        return Integer.compare(this.fValue, other.fValue);
+    }
+}
